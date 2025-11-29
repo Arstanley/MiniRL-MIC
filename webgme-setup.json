@@ -20,6 +20,14 @@
         "secondary": false,
         "widget": "src/visualizers/widgets/RLSimulator"
       }
+    },
+    "decorators": {
+      "RLDecoraterDecorator": {
+        "src": "src/decorators/RLDecoraterDecorator"
+      },
+      "RLDecorator": {
+        "src": "src/decorators/RLDecorator"
+      }
     }
   },
   "dependencies": {
@@ -32,6 +40,7 @@
     },
     "plugins": {},
     "seeds": {},
-    "visualizers": {}
+    "visualizers": {},
+    "decorators": {}
   }
 }
