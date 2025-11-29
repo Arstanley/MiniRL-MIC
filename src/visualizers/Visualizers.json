@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "id": "RLSimulator",
+    "title": "RLSimulator",
+    "panel": "panels/RLSimulator/RLSimulatorPanel",
+    "DEBUG_ONLY": false
+  }
+]

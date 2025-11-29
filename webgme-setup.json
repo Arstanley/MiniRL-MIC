@@ -1,4 +1,37 @@
 {
-  "components": {},
-  "dependencies": {}
+  "components": {
+    "routers": {},
+    "plugins": {
+      "RLCodeGenerator": {
+        "src": "src/plugins/RLCodeGenerator",
+        "test": "test/plugins/RLCodeGenerator"
+      }
+    },
+    "seeds": {
+      "Reinforcement_Learning": {
+        "src": "src/seeds/Reinforcement_Learning"
+      }
+    },
+    "visualizers": {
+      "RLSimulator": {
+        "src": "panels/RLSimulator/RLSimulatorPanel",
+        "title": "RLSimulator",
+        "panel": "src/visualizers/panels/RLSimulator",
+        "secondary": false,
+        "widget": "src/visualizers/widgets/RLSimulator"
+      }
+    }
+  },
+  "dependencies": {
+    "routers": {
+      "BindingsDocs": {
+        "project": "webgme-bindings",
+        "path": "node_modules/webgme-bindings/src/routers/BindingsDocs",
+        "mount": "bindings-docs"
+      }
+    },
+    "plugins": {},
+    "seeds": {},
+    "visualizers": {}
+  }
 }
