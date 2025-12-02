@@ -10,6 +10,7 @@ var config = require('webgme/config/config.default'),
 config.plugin.basePaths.push(__dirname + '/../src/plugins');
 config.visualization.decoratorPaths.push(__dirname + '/../src/decorators');
 config.seedProjects.basePaths.push(__dirname + '/../src/seeds/Reinforcement_Learning');
+config.seedProjects.basePaths.push(__dirname + '/../src/seeds/rl');
 
 
 
@@ -32,10 +33,6 @@ config.requirejsPaths = {
   'webgme-bindings': './node_modules/webgme-bindings/src/common',
   'reinforcement_learning': './src/common'
 };
-// ADD OR EDIT THIS SECTION
-config.plugin.allowServerExecution = true; 
-
-module.exports = config;
 
 
 config.mongo.uri = 'mongodb://127.0.0.1:27017/reinforcement_learning';

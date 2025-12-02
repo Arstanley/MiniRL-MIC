@@ -14,6 +14,9 @@
     "seeds": {
       "Reinforcement_Learning": {
         "src": "src/seeds/Reinforcement_Learning"
+      },
+      "rl": {
+        "src": "src/seeds/rl"
       }
     },
     "visualizers": {
