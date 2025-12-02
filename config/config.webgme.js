@@ -32,6 +32,10 @@ config.requirejsPaths = {
   'webgme-bindings': './node_modules/webgme-bindings/src/common',
   'reinforcement_learning': './src/common'
 };
+// ADD OR EDIT THIS SECTION
+config.plugin.allowServerExecution = true; 
+
+module.exports = config;
 
 
 config.mongo.uri = 'mongodb://127.0.0.1:27017/reinforcement_learning';

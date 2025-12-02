@@ -5,6 +5,10 @@
       "RLCodeGenerator": {
         "src": "src/plugins/RLCodeGenerator",
         "test": "test/plugins/RLCodeGenerator"
+      },
+      "RLPythonCodeGenerator": {
+        "src": "src/plugins/RLPythonCodeGenerator",
+        "test": "test/plugins/RLPythonCodeGenerator"
       }
     },
     "seeds": {
