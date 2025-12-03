@@ -26,6 +26,9 @@
       },
       "test7": {
         "src": "src/seeds/test7"
+      },
+      "reinforcement_learning": {
+        "src": "src/seeds/reinforcement_learning"
       }
     },
     "visualizers": {

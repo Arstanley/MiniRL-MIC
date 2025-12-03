@@ -83,35 +83,41 @@ define([
             self._client.updateTerritory(self._territoryId, self._selfPatterns);
         }
     };
+RLSimulatorControl.prototype._getObjectDescriptor = function (nodeId) {
+    var node = this._client.getNode(nodeId),
+        objDescriptor;
 
-    // This next function retrieves the relevant node information for the widget
-    RLSimulatorControl.prototype._getObjectDescriptor = function (nodeId) {
-        var node = this._client.getNode(nodeId),
-            objDescriptor;
-        if (node) {
-            objDescriptor = {
-                id: node.getId(),
-                name: node.getAttribute(nodePropertyNames.Attributes.name),
-                childrenIds: node.getChildrenIds(),
-                parentId: node.getParentId(),
-                isConnection: GMEConcepts.isConnection(nodeId),
-                // Custom Attributes for RL
-                gifHash: node.getAttribute('gif_env'),
-                modelHash: node.getAttribute('trained_model'),
-                metaName: '' 
-            };
+    if (!node) {
+        return null;
+    }
 
-            var metaTypeId = node.getMetaTypeId();
-            if (metaTypeId) {
-                var metaNode = this._client.getNode(metaTypeId);
-                if (metaNode) {
-                    objDescriptor.metaName = metaNode.getAttribute('name');
-                }
-            }
-        }
+    var gifAttr    = node.getAttribute('gif_env');
+    var modelAttr  = node.getAttribute('trained_model');
+    var configAttr = node.getAttribute('config');
 
-        return objDescriptor;
+    objDescriptor = {
+        id: node.getId(),
+        name: node.getAttribute(nodePropertyNames.Attributes.name),
+        childrenIds: node.getChildrenIds(),
+        parentId: node.getParentId(),
+        isConnection: GMEConcepts.isConnection(nodeId),
+
+        gifHash:    gifAttr    && gifAttr.hash,
+        modelHash:  modelAttr  && modelAttr.hash,
+        configHash: configAttr && configAttr.hash,
+        metaName: ''
     };
+
+    var metaTypeId = node.getMetaTypeId();
+    if (metaTypeId) {
+        var metaNode = this._client.getNode(metaTypeId);
+        if (metaNode) {
+            objDescriptor.metaName = metaNode.getAttribute('name');
+        }
+    }
+
+    return objDescriptor;
+};
 
     /* * * * * * * * Node Event Handling * * * * * * * */
     RLSimulatorControl.prototype._eventCallback = function (events) {
@@ -145,7 +151,6 @@ define([
         var description = this._getObjectDescriptor(gmeId);
 
         // --- FILTERING LOGIC ---
-        // If it exists and is NOT a Training_Run, ignore it.
         if (description && description.metaName !== 'Training_Run') {
             return;
         }

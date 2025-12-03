@@ -25,13 +25,10 @@ define(['css!./styles/RLSimulatorWidget.css'], function () {
             height = this._el.height(),
             self = this;
 
-        // set widget class
         this._el.addClass(WIDGET_CLASS);
 
-        // Create a dummy header
         this._el.append('<h3>RLSimulator Events:</h3>');
 
-        // Registering to events can be done with jQuery (as normal)
         this._el.on('dblclick', function (event) {
             event.stopPropagation();
             event.preventDefault();
@@ -43,21 +40,15 @@ define(['css!./styles/RLSimulatorWidget.css'], function () {
         this._logger.debug('Widget is resizing...');
     };
 
-    // Adding/Removing/Updating items
     RLSimulatorWidget.prototype.addNode = function (desc) {
         if (desc) {
-            // Check if we have already rendered this node, if so, update it
             if (this.nodes[desc.id]) {
                 this.updateNode(desc);
                 return;
             }
 
-            // Only visualize Training_Run nodes
-            // (You can remove this check if you want to see agents too)
-            // But usually, you only want to see the results here.
             var isTrainingRun = desc.metaName === 'Training_Run';
             
-            // Create container div
             var node = document.createElement('div');
             node.className = 'rl-node-container';
             node.style.border = '1px solid #ccc';
@@ -67,20 +58,17 @@ define(['css!./styles/RLSimulatorWidget.css'], function () {
             node.style.background = '#f9f9f9';
             node.style.display = 'inline-block';
             node.style.verticalAlign = 'top';
-            node.style.width = '320px'; // fixed width for card look
+            node.style.width = '320px'; 
             
-            // Store description
             this.nodes[desc.id] = {
                 desc: desc,
                 el: node
             };
 
-            // Render content
             this._renderContent(node, desc);
 
             this._el.append(node);
             
-            // Bind click
             node.onclick = this.onNodeClick.bind(this, desc.id);
         }
     };
@@ -96,63 +84,139 @@ define(['css!./styles/RLSimulatorWidget.css'], function () {
     RLSimulatorWidget.prototype.updateNode = function (desc) {
         if (desc && this.nodes[desc.id]) {
             this._logger.debug('Updating node:', desc);
-            // Update the stored description
             this.nodes[desc.id].desc = desc;
-            // Re-render the content inside the existing element
             this._renderContent(this.nodes[desc.id].el, desc);
         }
     };
 
-    /**
-     * Helper to render the HTML content based on the descriptor
-     */
     RLSimulatorWidget.prototype._renderContent = function (container, desc) {
-        // Clear previous content
-        $(container).empty();
+    var self = this;
 
-        // 1. Title
-        var title = $('<h4>').text(desc.name);
-        $(container).append(title);
+    $(container).empty();
 
-        // 2. GIF Display
-        if (desc.gifHash) {
-            var downloadUrl = '/rest/blob/download/' + desc.gifHash;
-            var img = $('<img>')
-                .attr('src', downloadUrl)
-                .css('width', '100%')
-                .css('border', '1px solid #ddd')
-                .css('border-radius', '4px')
-                .css('margin-bottom', '10px');
-            
-            $(container).append(img);
-        } else {
-            // Placeholder if no GIF yet
-            var placeholder = $('<div>')
-                .text('No training results yet.')
-                .css('color', '#888')
-                .css('font-style', 'italic')
-                .css('padding', '20px')
-                .css('text-align', 'center')
-                .css('background', '#eee');
-            $(container).append(placeholder);
+    var title = $('<h4>').text(desc.name);
+    $(container).append(title);
+
+if (desc.gifHash) {
+    var downloadUrl = '/rest/blob/download/' + desc.gifHash;
+
+    var img = $('<img>')
+        .css('width', '100%')
+        .css('border', '1px solid #ddd')
+        .css('border-radius', '4px')
+        .css('margin-bottom', '10px');
+
+    $(container).append(img);
+
+    $.ajax({
+        url: downloadUrl,
+        dataType: 'text',
+        success: function (b64) {
+            b64 = b64.trim();
+            var dataUrl = 'data:image/gif;base64,' + b64;
+            img.attr('src', dataUrl);
+        },
+        error: function () {
+            img.remove();
+            var errorDiv = $('<div>')
+                .text('Failed to load GIF.')
+                .css('color', '#c00')
+                .css('font-style', 'italic');
+            $(container).append(errorDiv);
         }
+    });
+} else {
+    var placeholder = $('<div>')
+        .text('No training results yet.')
+        .css('color', '#888')
+        .css('font-style', 'italic')
+        .css('padding', '20px')
+        .css('text-align', 'center')
+        .css('background', '#eee');
+    $(container).append(placeholder);
+}
 
-        // 3. Model Download Link
-        if (desc.modelHash) {
-            var modelUrl = '/rest/blob/download/' + desc.modelHash;
-            var link = $('<a>')
-                .attr('href', modelUrl)
-                .attr('target', '_blank') // open in new tab/download
-                .addClass('btn btn-primary btn-xs') // use standard bootstrap classes
-                .text('Download Trained Model (ZIP)')
-                .css('display', 'block')
-                .css('text-align', 'center')
-                .css('margin-top', '5px');
-            
-            $(container).append(link);
+    if (desc.modelHash) {
+    var modelUrl = '/rest/blob/download/' + desc.modelHash;
+
+    var modelBtn = $('<button>')
+        .text('Download Trained Model (ZIP)')
+        .addClass('btn btn-primary btn-xs')
+        .css({ display: 'block', 'text-align': 'center', 'margin-top': '5px' })
+        .prop('disabled', true);
+
+    $(container).append(modelBtn);
+
+    $.ajax({
+        url: modelUrl,
+        dataType: 'text',
+        success: function (b64text) {
+            try {
+                var binary = atob(b64text.trim());
+                var len = binary.length;
+                var bytes = new Uint8Array(len);
+
+                for (var i = 0; i < len; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+
+                var blob = new Blob([bytes], { type: 'application/zip' });
+
+                var objUrl = URL.createObjectURL(blob);
+
+                modelBtn.prop('disabled', false);
+                modelBtn.wrap('<a download="trained_model.zip" href="' + objUrl + '"></a>');
+
+            } catch (err) {
+                modelBtn.text('Failed to decode model ZIP');
+                console.error('Model decode error:', err);
+            }
+        },
+        error: function () {
+            modelBtn.text('Failed to load model.');
         }
-    };
+    });
+}
+    if (desc.configHash) {
+    var cfgUrl = '/rest/blob/download/' + desc.configHash;
 
+    var cfgHeader = $('<h5>')
+        .text('Config')
+        .css('margin-top', '10px');
+    $(container).append(cfgHeader);
+
+    var cfgPre = $('<pre>')
+        .text('Loading config...')
+        .css({
+            background: '#f7f7f7',
+            padding: '8px',
+            border: '1px solid #ddd',
+            'border-radius': '4px',
+            'max-height': '400px',
+            overflow: 'auto',
+            'font-size': '11px'
+        });
+    $(container).append(cfgPre);
+
+    $.ajax({
+        url: cfgUrl,
+        dataType: 'text',
+        success: function (b64text) {
+            try {
+                var jsonText = atob(b64text.trim());
+                var obj = JSON.parse(jsonText);
+                cfgPre.text(JSON.stringify(obj, null, 2));
+            } catch (e) {
+                cfgPre.text('Failed to decode config: ' + e);
+            }
+        },
+        error: function () {
+            cfgPre.text('Failed to load config.');
+        }
+    });
+}
+
+};
     RLSimulatorWidget.prototype.removeNode = function (gmeId) {
         var desc = this.nodes[gmeId];
         this._el.append('<div>Removing node "' + desc.name + '"</div>');
@@ -169,8 +233,7 @@ define(['css!./styles/RLSimulatorWidget.css'], function () {
     /* * * * * * * * Visualizer event handlers * * * * * * * */
 
     RLSimulatorWidget.prototype.onNodeClick = function (/*id*/) {
-        // This currently changes the active node to the given id and
-        // this is overridden in the controller.
+ 
     };
 
     RLSimulatorWidget.prototype.onBackgroundDblClick = function () {
