@@ -17,6 +17,12 @@
       },
       "rl": {
         "src": "src/seeds/rl"
+      },
+      "test6": {
+        "src": "src/seeds/test6"
+      },
+      "RL": {
+        "src": "src/seeds/RL"
       }
     },
     "visualizers": {

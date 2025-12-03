@@ -1,8 +1,14 @@
 import sys
+import os
+import tempfile
 import logging
+import io
+import imageio.v2 as imageio   
+import gymnasium as gym
+import torch.nn as nn
+from stable_baselines3 import PPO, DQN, A2C
 from webgme_bindings import PluginBase
 
-# Setup a logger
 logger = logging.getLogger('RLPythonCodeGenerator')
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
@@ -11,182 +17,163 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+
 class RLPythonCodeGenerator(PluginBase):
     def main(self):
         core = self.core
         root_node = self.root_node
         active_node = self.active_node
-        
-        # 1. Load all children of the active node (The Folder)
+
         children = core.load_children(active_node)
-        
-        # 2. Iterate through children to find 'Training_Run' nodes
+
         for child in children:
             meta_type = core.get_meta_type(child)
             meta_name = core.get_attribute(meta_type, 'name') if meta_type else ''
-            
-            if meta_name == 'Training_Run':
-                run_name = core.get_attribute(child, 'name')
-                logger.info(f'Processing Training Run: {run_name}')
-                
-                # --- A. Get Training Parameters ---
-                run_params = {
-                    'batch_size': core.get_attribute(child, 'batch_size'),
-                    'timesteps': core.get_attribute(child, 'timesteps')
-                }
 
-                # --- B. Resolve Pointers (Agent & Environment) ---
-                # We assume the pointers are named 'Agent' and 'Environment' based on the diagram connections
-                agent_node = self.get_pointer_node(child, 'Agent')
-                env_node = self.get_pointer_node(child, 'Environment')
-                
-                if not agent_node or not env_node:
-                    logger.error(f"Training Run {run_name} is missing a pointer to Agent or Environment!")
-                    continue
-                
-                # --- C. Get Agent Parameters ---
-                agent_name = core.get_attribute(agent_node, 'name')
-                agent_params = {
-                    'learning_rate': core.get_attribute(agent_node, 'learning_rate'),
-                    'discount_factor': core.get_attribute(agent_node, 'discount_factor'),
-                    'epsilon_decay': core.get_attribute(agent_node, 'epsilon_decay'),
-                    'initial_epsilon': core.get_attribute(agent_node, 'initial_epsilon'),
-                    'final_epsilon': core.get_attribute(agent_node, 'final_epsilon'),
-                    'policy_type': core.get_attribute(agent_node, 'policy')
-                }
-                
-                # --- D. Get Architecture (Child of Agent) ---
-                # We need to load children of the Agent to find the Architecture node
-                agent_children = core.load_children(agent_node)
-                arch_params = {'layer_size': 64, 'activation': 'ReLU'} # Defaults
-                
-                for grand_child in agent_children:
-                    gc_meta = core.get_meta_type(grand_child)
-                    if gc_meta and core.get_attribute(gc_meta, 'name') == 'Architecture':
-                        # Note: accessing 'activation_funtion' exactly as spelled in diagram
-                        arch_params['activation'] = core.get_attribute(grand_child, 'activation_funtion')
-                        arch_params['layer_size'] = core.get_attribute(grand_child, 'layer_size')
-                        break
+            if meta_name != 'Training_Run':
+                continue
 
-                # --- E. Get Environment Parameters ---
-                env_id = core.get_attribute(env_node, 'env_id')
-                
-                # --- F. Generate Code ---
-                code = self.generate_script(run_name, env_id, run_params, agent_params, arch_params)
-                self.add_file(f'{run_name}.py', code)
+            run_node = child  # keep reference so we can set attributes later
+            run_name = core.get_attribute(child, 'name')
+            logger.info(f'Processing Training Run: {run_name}')
 
-        commit_info = self.util.save(root_node, self.commit_hash, 'master', 'Generated RL Training Code')
+            run_params = {
+                'batch_size': core.get_attribute(child, 'batch_size'),
+                'timesteps': core.get_attribute(child, 'timesteps'),
+            }
+
+            agent_node = self.get_pointer_node(child, 'Agent')
+            env_node = self.get_pointer_node(child, 'Environment')
+
+            if not agent_node or not env_node:
+                logger.error(
+                    f"Training Run {run_name} is missing a pointer to Agent or Environment!"
+                )
+                continue
+
+            agent_params = {
+                'algorithm': core.get_attribute(agent_node, 'algorithm'),
+                'policy_type': core.get_attribute(agent_node, 'policy_type'),
+                'learning_rate': core.get_attribute(agent_node, 'learning_rate'),
+                'discount_factor': core.get_attribute(agent_node, 'discount_factor'),
+            }
+
+            agent_children = core.load_children(agent_node)
+            arch_params = {
+                'activation': 'ReLU',
+                'layer_size': 64,
+                'num_layers': 2,
+                'arch_type': 'mlp',
+            }
+
+            for grand_child in agent_children:
+                gc_meta = core.get_meta_type(grand_child)
+                if gc_meta and core.get_attribute(gc_meta, 'name') == 'Architecture':
+                    arch_params['activation'] = core.get_attribute(
+                        grand_child, 'activation'
+                    )
+                    arch_params['layer_size'] = core.get_attribute(
+                        grand_child, 'layer_size'
+                    )
+                    arch_params['num_layers'] = core.get_attribute(
+                        grand_child, 'num_layers'
+                    )
+                    arch_params['arch_type'] = core.get_attribute(
+                        grand_child, 'type'
+                    )
+                    break
+
+            env_params = {
+                'env_id': core.get_attribute(env_node, 'env_id'),
+                'seed': core.get_attribute(env_node, 'seed'),
+            }
+
+            self.train_with_sb3(run_node, run_name, env_params, run_params, agent_params, arch_params)
+
+
+        self.util.save(
+            root_node, self.commit_hash, 'master', 'Ran RL training with SB3'
+        )
         logger.info('Plugin completed.')
 
     def get_pointer_node(self, node, pointer_name):
-        """Helper to load a node from a pointer path."""
         path = self.core.get_pointer_path(node, pointer_name)
         if path:
             return self.core.load_by_path(self.root_node, path)
         return None
 
-    def generate_script(self, run_name, env_id, run_p, agent_p, arch_p):
-        """Generates the Python string."""
-        
-        # Map string activation to PyTorch code
-        act_map = {'ReLU': 'nn.ReLU()', 'Tanh': 'nn.Tanh()', 'Sigmoid': 'nn.Sigmoid()'}
-        activation_code = act_map.get(arch_p['activation'], 'nn.ReLU()')
-        
-        return f"""import gymnasium as gym
-import math
-import random
-import matplotlib.pyplot as plt
-import torch
-import torch.nn as nn
-import torch.optim as optim
+    def train_with_sb3(self, run_node, run_name, env_p, run_p, agent_p, arch_p):
+        core = self.core
+        logger.info(f"Starting SB3 training for run '{run_name}'")
 
-# ==========================================
-# TRAINING RUN: {run_name}
-# AGENT POLICY: {agent_p['policy_type']}
-# ==========================================
+        algo_map = {"PPO": PPO, "DQN": DQN, "A2C": A2C}
+        algo_cls = algo_map.get(agent_p['algorithm'])
+        if algo_cls is None:
+            logger.error(f"Unknown algorithm '{agent_p['algorithm']}'")
+            return
 
-# Hyperparameters
-ENV_ID = "{env_id}"
-BATCH_SIZE = {run_p['batch_size']}
-TOTAL_TIMESTEPS = {run_p['timesteps']}
+        act_map = {"ReLU": nn.ReLU, "Tanh": nn.Tanh, "Sigmoid": nn.Sigmoid}
+        activation_fn = act_map.get(arch_p['activation'], nn.ReLU)
+        net_arch = [arch_p['layer_size']] * max(1, int(arch_p['num_layers']))
+        policy_kwargs = dict(activation_fn=activation_fn, net_arch=net_arch)
 
-GAMMA = {agent_p['discount_factor']}
-EPS_START = {agent_p['initial_epsilon']}
-EPS_END = {agent_p['final_epsilon']}
-EPS_DECAY = {agent_p['epsilon_decay']}
-LR = {agent_p['learning_rate']}
+        # 3) Training env (no rendering)
+        train_env = gym.make(env_p['env_id'])
+        if env_p['seed'] is not None:
+            train_env.reset(seed=env_p['seed'])
 
-LAYER_SIZE = {arch_p['layer_size']}
+        algo_kwargs = dict(
+            learning_rate=agent_p['learning_rate'],
+            gamma=agent_p['discount_factor'],
+            policy_kwargs=policy_kwargs,
+            verbose=1,
+            device="cpu",
+        )
+        if agent_p['algorithm'] in ("PPO", "DQN"):
+            algo_kwargs["batch_size"] = run_p["batch_size"]
 
-class DQN(nn.Module):
-    def __init__(self, n_observations, n_actions):
-        super(DQN, self).__init__()
-        # Architecture defined in WebGME
-        self.layer1 = nn.Linear(n_observations, LAYER_SIZE)
-        self.layer2 = nn.Linear(LAYER_SIZE, LAYER_SIZE)
-        self.layer3 = nn.Linear(LAYER_SIZE, n_actions)
-        self.activation = {activation_code}
+        model = algo_cls(agent_p["policy_type"], train_env, **algo_kwargs)
 
-    def forward(self, x):
-        x = self.activation(self.layer1(x))
-        x = self.activation(self.layer2(x))
-        return self.layer3(x)
+        logger.info(
+            f"Training with timesteps={run_p['timesteps']}, "
+            f"lr={agent_p['learning_rate']}, gamma={agent_p['discount_factor']}"
+        )
+        model.learn(total_timesteps=run_p["timesteps"])
+        train_env.close()
+        logger.info(f"Finished SB3 training for run '{run_name}'")
 
-def train():
-    env = gym.make(ENV_ID)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    n_actions = env.action_space.n
-    state, info = env.reset()
-    n_observations = len(state)
+        tmp_model_path = os.path.join(
+            tempfile.gettempdir(), f"{run_name}_model.zip"
+        )
+        model.save(tmp_model_path)
+        with open(tmp_model_path, "rb") as f:
+            model_bytes = f.read()
+        model_hash = self.add_file(f"{run_name}_model.zip", model_bytes)
+        core.set_attribute(run_node, "trained_model", model_hash)
 
-    policy_net = DQN(n_observations, n_actions).to(device)
-    target_net = DQN(n_observations, n_actions).to(device)
-    target_net.load_state_dict(policy_net.state_dict())
+        vis_env = gym.make(env_p["env_id"], render_mode="rgb_array")
+        if env_p["seed"] is not None:
+            vis_env.reset(seed=env_p["seed"])
 
-    optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
-    steps_done = 0
-    
-    print(f"Starting training on {{ENV_ID}} for {{TOTAL_TIMESTEPS}} steps...")
+        frames = []
+        obs, _ = vis_env.reset()
+        for _ in range(200):    
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, done, truncated, info = vis_env.step(action)
+            frame = vis_env.render()        
+            frames.append(frame)
+            if done or truncated:
+                obs, _ = vis_env.reset()
 
-    # Simplified Training Loop for Demonstration
-    state, info = env.reset()
-    state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-    
-    for t in range(TOTAL_TIMESTEPS):
-        # Select Action (Epsilon Greedy)
-        sample = random.random()
-        eps_threshold = EPS_END + (EPS_START - EPS_END) * \\
-            math.exp(-1. * steps_done / EPS_DECAY)
-        steps_done += 1
-        
-        if sample > eps_threshold:
-            with torch.no_grad():
-                action = policy_net(state).max(1)[1].view(1, 1)
-        else:
-            action = torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long)
+        vis_env.close()
 
-        # Step
-        observation, reward, terminated, truncated, _ = env.step(action.item())
-        reward = torch.tensor([reward], device=device)
-        done = terminated or truncated
+        buf = io.BytesIO()
+        imageio.mimsave(buf, frames, format="GIF", fps=30)
+        gif_bytes = buf.getvalue()
 
-        if terminated:
-            next_state = None
-        else:
-            next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
+        gif_hash = self.add_file(f"{run_name}_rollout.gif", gif_bytes)
+        core.set_attribute(run_node, "gif_env", gif_hash)
 
-        # Move to next state
-        state = next_state
-        
-        # (Optimization step omitted for brevity, but would use BATCH_SIZE here)
-        
-        if done:
-            state, info = env.reset()
-            state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-
-    print("Training Complete")
-
-if __name__ == '__main__':
-    train()
-"""
+        logger.info(
+            f"Saved trained_model asset={model_hash} and gif_env asset={gif_hash} for '{run_name}'"
+        )
