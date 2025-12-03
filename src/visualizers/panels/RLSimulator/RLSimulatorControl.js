@@ -101,7 +101,6 @@ define([
                 metaName: '' 
             };
 
-            // Get the Meta Type Name (e.g., "Training_Run", "Agent")
             var metaTypeId = node.getMetaTypeId();
             if (metaTypeId) {
                 var metaNode = this._client.getNode(metaTypeId);

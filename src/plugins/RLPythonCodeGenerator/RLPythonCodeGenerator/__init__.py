@@ -53,7 +53,6 @@ class RLPythonCodeGenerator(PluginBase):
                 'discount_factor': core.get_attribute(agent_node, 'discount_factor'),
             }
 
-            
             arch_params = {
                 'activation': core.get_attribute(arch_node, 'activation'),
                 'layer_size': core.get_attribute(arch_node, 'layer_size'),
@@ -120,15 +119,13 @@ class RLPythonCodeGenerator(PluginBase):
         model.save(tmp_model_path)
         with open(tmp_model_path, "rb") as f:
             model_bytes = f.read()
-        model_hash = self.add_file(f"{run_name}_model.zip", model_bytes)
-        core.set_attribute(run_node, "trained_model", model_hash)
 
         eval_env = gym.make(env_params["env_id"], render_mode="rgb_array")
         eval_env.reset(seed=env_params["seed"])    
 
         frames = []
         obs, _ = eval_env.reset()
-        for _ in range(200):
+        for _ in range(100):
             action, _ = model.predict(obs, deterministic=True)
             obs, _, done, truncated, info = eval_env.step(action)   
             frame = eval_env.render()
@@ -136,12 +133,6 @@ class RLPythonCodeGenerator(PluginBase):
             if done or truncated:
                 obs, _ = eval_env.reset()
         eval_env.close()
-
-        buffer = io.BytesIO()
-        imageio.mimsave(buffer, frames, format="GIF", fps=30)
-        gif_bytes = buffer.getvalue()
-        gif_hash = self.add_file(f"{run_name}_rollout.gif", gif_bytes)
-        core.set_attribute(run_node, "gif_env", gif_hash)
 
         config = {
             "run_name": run_name,
@@ -163,5 +154,43 @@ class RLPythonCodeGenerator(PluginBase):
             },
         }
         config_str = json.dumps(config, indent=2)
-        config_hash = self.add_file(f"{run_name}_config.json", config_str)
-        core.set_attribute(run_node, "model_config", config_hash)
+ 
+        buffer = io.BytesIO()
+        imageio.mimsave(buffer, frames, format="GIF", fps=30)
+        gif_bytes = buffer.getvalue()
+
+        output_dir = "./rl_outputs"
+        os.makedirs(output_dir, exist_ok=True)
+        gif_path = os.path.join(output_dir, f"{run_name}_rollout.gif")
+        with open(gif_path, "wb") as f:
+            f.write(gif_bytes)
+
+        model_path = os.path.join(output_dir, f"{run_name}_model.zip")
+        model.save(model_path)
+        with open(model_path, "rb") as f:
+            model_bytes = f.read()
+
+        config_path = os.path.join(output_dir, f"{run_name}_config.json")
+        with open(config_path, "w", encoding="utf-8") as f:
+            f.write(config_str)
+
+        config_bytes = config_str.encode("utf-8")
+
+        gif_hash = self.add_file(f"{run_name}_rollout.gif", gif_bytes)
+        core.set_attribute(run_node, "gif_env", {
+            "filename": f"{run_name}_rollout.gif",
+            "hash": gif_hash,
+        })
+
+        model_hash = self.add_file(f"{run_name}_model.zip", model_bytes)
+        core.set_attribute(run_node, "trained_model", {
+            "filename": f"{run_name}_model.zip",
+            "hash": model_hash,
+        })
+
+        config_hash = self.add_file(f"{run_name}_config.json", config_bytes)
+        core.set_attribute(run_node, "config", {
+            "filename": f"{run_name}_config.json",
+            "hash": config_hash,
+        })
+
