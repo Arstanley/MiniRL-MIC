@@ -27,7 +27,7 @@ define(['css!./styles/RLSimulatorWidget.css'], function () {
 
         this._el.addClass(WIDGET_CLASS);
 
-        this._el.append('<h3>RLSimulator Events:</h3>');
+        this._el.append('<h3>RL Simulator:</h3>');
 
         this._el.on('dblclick', function (event) {
             event.stopPropagation();
