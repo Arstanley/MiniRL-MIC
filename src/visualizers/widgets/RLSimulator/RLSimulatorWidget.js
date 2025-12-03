@@ -46,20 +46,110 @@ define(['css!./styles/RLSimulatorWidget.css'], function () {
     // Adding/Removing/Updating items
     RLSimulatorWidget.prototype.addNode = function (desc) {
         if (desc) {
-            // Add node to a table of nodes
-            var node = document.createElement('div'),
-                label = 'children';
-
-            if (desc.childrenIds.length === 1) {
-                label = 'child';
+            // Check if we have already rendered this node, if so, update it
+            if (this.nodes[desc.id]) {
+                this.updateNode(desc);
+                return;
             }
 
-            this.nodes[desc.id] = desc;
-            node.innerHTML = 'Adding node "' + desc.name + '" (click to view). It has ' +
-                desc.childrenIds.length + ' ' + label + '.';
+            // Only visualize Training_Run nodes
+            // (You can remove this check if you want to see agents too)
+            // But usually, you only want to see the results here.
+            var isTrainingRun = desc.metaName === 'Training_Run';
+            
+            // Create container div
+            var node = document.createElement('div');
+            node.className = 'rl-node-container';
+            node.style.border = '1px solid #ccc';
+            node.style.margin = '10px';
+            node.style.padding = '10px';
+            node.style.borderRadius = '5px';
+            node.style.background = '#f9f9f9';
+            node.style.display = 'inline-block';
+            node.style.verticalAlign = 'top';
+            node.style.width = '320px'; // fixed width for card look
+            
+            // Store description
+            this.nodes[desc.id] = {
+                desc: desc,
+                el: node
+            };
+
+            // Render content
+            this._renderContent(node, desc);
 
             this._el.append(node);
+            
+            // Bind click
             node.onclick = this.onNodeClick.bind(this, desc.id);
+        }
+    };
+
+    RLSimulatorWidget.prototype.removeNode = function (gmeId) {
+        var nodeObj = this.nodes[gmeId];
+        if (nodeObj) {
+            $(nodeObj.el).remove();
+            delete this.nodes[gmeId];
+        }
+    };
+
+    RLSimulatorWidget.prototype.updateNode = function (desc) {
+        if (desc && this.nodes[desc.id]) {
+            this._logger.debug('Updating node:', desc);
+            // Update the stored description
+            this.nodes[desc.id].desc = desc;
+            // Re-render the content inside the existing element
+            this._renderContent(this.nodes[desc.id].el, desc);
+        }
+    };
+
+    /**
+     * Helper to render the HTML content based on the descriptor
+     */
+    RLSimulatorWidget.prototype._renderContent = function (container, desc) {
+        // Clear previous content
+        $(container).empty();
+
+        // 1. Title
+        var title = $('<h4>').text(desc.name);
+        $(container).append(title);
+
+        // 2. GIF Display
+        if (desc.gifHash) {
+            var downloadUrl = '/rest/blob/download/' + desc.gifHash;
+            var img = $('<img>')
+                .attr('src', downloadUrl)
+                .css('width', '100%')
+                .css('border', '1px solid #ddd')
+                .css('border-radius', '4px')
+                .css('margin-bottom', '10px');
+            
+            $(container).append(img);
+        } else {
+            // Placeholder if no GIF yet
+            var placeholder = $('<div>')
+                .text('No training results yet.')
+                .css('color', '#888')
+                .css('font-style', 'italic')
+                .css('padding', '20px')
+                .css('text-align', 'center')
+                .css('background', '#eee');
+            $(container).append(placeholder);
+        }
+
+        // 3. Model Download Link
+        if (desc.modelHash) {
+            var modelUrl = '/rest/blob/download/' + desc.modelHash;
+            var link = $('<a>')
+                .attr('href', modelUrl)
+                .attr('target', '_blank') // open in new tab/download
+                .addClass('btn btn-primary btn-xs') // use standard bootstrap classes
+                .text('Download Trained Model (ZIP)')
+                .css('display', 'block')
+                .css('text-align', 'center')
+                .css('margin-top', '5px');
+            
+            $(container).append(link);
         }
     };
 

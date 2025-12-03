@@ -118,6 +118,7 @@ class RLPythonCodeGenerator(PluginBase):
         policy_kwargs = dict(activation_fn=activation_fn, net_arch=net_arch)
 
         # 3) Training env (no rendering)
+        logger.info(env_p['env_id'])
         train_env = gym.make(env_p['env_id'])
         if env_p['seed'] is not None:
             train_env.reset(seed=env_p['seed'])

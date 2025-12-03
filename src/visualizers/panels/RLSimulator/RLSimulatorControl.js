@@ -94,8 +94,21 @@ define([
                 name: node.getAttribute(nodePropertyNames.Attributes.name),
                 childrenIds: node.getChildrenIds(),
                 parentId: node.getParentId(),
-                isConnection: GMEConcepts.isConnection(nodeId)
+                isConnection: GMEConcepts.isConnection(nodeId),
+                // Custom Attributes for RL
+                gifHash: node.getAttribute('gif_env'),
+                modelHash: node.getAttribute('trained_model'),
+                metaName: '' 
             };
+
+            // Get the Meta Type Name (e.g., "Training_Run", "Agent")
+            var metaTypeId = node.getMetaTypeId();
+            if (metaTypeId) {
+                var metaNode = this._client.getNode(metaTypeId);
+                if (metaNode) {
+                    objDescriptor.metaName = metaNode.getAttribute('name');
+                }
+            }
         }
 
         return objDescriptor;
@@ -131,12 +144,31 @@ define([
 
     RLSimulatorControl.prototype._onLoad = function (gmeId) {
         var description = this._getObjectDescriptor(gmeId);
-        this._widget.addNode(description);
+
+        // --- FILTERING LOGIC ---
+        // If it exists and is NOT a Training_Run, ignore it.
+        if (description && description.metaName !== 'Training_Run') {
+            return;
+        }
+        // -----------------------
+
+        if (description) {
+            this._widget.addNode(description);
+        }
     };
 
     RLSimulatorControl.prototype._onUpdate = function (gmeId) {
         var description = this._getObjectDescriptor(gmeId);
-        this._widget.updateNode(description);
+
+        // --- FILTERING LOGIC ---
+        if (description && description.metaName !== 'Training_Run') {
+            return;
+        }
+        // -----------------------
+
+        if (description) {
+            this._widget.updateNode(description);
+        }
     };
 
     RLSimulatorControl.prototype._onUnload = function (gmeId) {
