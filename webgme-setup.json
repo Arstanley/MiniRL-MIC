@@ -23,6 +23,9 @@
       },
       "RL": {
         "src": "src/seeds/RL"
+      },
+      "test7": {
+        "src": "src/seeds/test7"
       }
     },
     "visualizers": {

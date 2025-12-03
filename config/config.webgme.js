@@ -13,6 +13,7 @@ config.seedProjects.basePaths.push(__dirname + '/../src/seeds/Reinforcement_Lear
 config.seedProjects.basePaths.push(__dirname + '/../src/seeds/rl');
 config.seedProjects.basePaths.push(__dirname + '/../src/seeds/test6');
 config.seedProjects.basePaths.push(__dirname + '/../src/seeds/RL');
+config.seedProjects.basePaths.push(__dirname + '/../src/seeds/test7');
 
 
 
