@@ -6,9 +6,9 @@ This project uses WebGME to build a design studio that automatically trains open
 First, install the reinforcement_learning following:
 - [NodeJS](https://nodejs.org/en/) (LTS recommended)
 - [MongoDB](https://www.mongodb.com/)
-- gymnasium
-- pytorch
-- stable_baselines3
+- [gymnasium](https://gymnasium.farama.org/)
+- [pytorch](https://pytorch.org/)
+- [stable_baselines3](https://stable-baselines3.readthedocs.io/en/master/)
 
 Second, start mongodb locally by running the `mongod` executable in your mongodb installation (you may need to create a `data` directory or set `--dbpath`).
 
