@@ -1,6 +1,6 @@
 # reinforcement_learning
 ## Overview
-This project uses WebGME to build a design studio that automatically trains openAI gym reinforcement learning agents. Users can configure experiments by customizing the agent parameters, policy, and neural network architectures as well as switch between gym environments. The results of the trained agent are displayed in the evaluation of the agent and allows for downloading the trained model artifact.
+This project uses WebGME to build a design studio that automatically trains openAI gym reinforcement learning agents. Users can design experiments by selecting an environment, choosing an RL algorithm/policy, and specifying training settings such as hyperparameters, network architecture, and runtime options. The design studio uses this configuration and automatically trains an agent with the specified parameters. After the agent is trained, the studio evaluates the agent on a rollout of the environment and displays a gif of the agent's policy and the downloadable trained model artifact.
 
 ## Installation
 First, install the reinforcement_learning following:
